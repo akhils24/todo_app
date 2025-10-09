@@ -12,7 +12,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "todo_db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
     private static final String TABLE_TASKS = "tasks";
 
     private static final String COLUMN_ID = "id";
@@ -83,6 +83,29 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return taskList;
     }
 
+    // 🔍 Get Tasks by Priority
+    public List<Task> getTasksByPriority(String priority) {
+        List<Task> taskList = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_TASKS + " WHERE " + COLUMN_PRIORITY + "=?", new String[]{priority});
+        if (cursor.moveToFirst()) {
+            do {
+                Task task = new Task();
+                task.setId(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+                task.setTitle(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TITLE)));
+                task.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DESCRIPTION)));
+                task.setDueDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DUE_DATE)));
+                task.setPriority(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PRIORITY)));
+                task.setCompleted(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_COMPLETED)) == 1);
+                taskList.add(task);
+            } while (cursor.moveToNext());
+        }
+        cursor.close();
+        db.close();
+        return taskList;
+    }
+
+
     // ✏️ Update Task
     public void updateTask(Task task) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -101,5 +124,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         db.delete(TABLE_TASKS, COLUMN_ID + "=?", new String[]{String.valueOf(id)});
         db.close();
+    }
+
+    // ✅ Count Completed Tasks
+    public int getCompletedTaskCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String query = "SELECT COUNT(*) FROM " + TABLE_TASKS + " WHERE " + COLUMN_COMPLETED + " = 1";
+        Cursor cursor = db.rawQuery(query, null);
+        int count = 0;
+        if (cursor.moveToFirst()) {
+            count = cursor.getInt(0);
+        }
+        cursor.close();
+        db.close();
+        return count;
     }
 }

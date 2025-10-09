@@ -7,6 +7,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.TextView;
 
@@ -38,6 +39,9 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     public void onBindViewHolder(@NonNull TaskViewHolder holder, int position) {
         Task task = taskList.get(position);
 
+        // Prevent triggering listener while binding
+        holder.checkBoxComplete.setOnCheckedChangeListener(null);
+
         // Set data
         holder.tvTaskTitle.setText(task.getTitle());
         holder.tvDueDate.setText("Due: " + task.getDueDate());
@@ -67,10 +71,21 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
         }
 
         // ✅ Checkbox click (mark complete/incomplete)
-        holder.checkBoxComplete.setOnClickListener(v -> {
-            task.setCompleted(holder.checkBoxComplete.isChecked());
+        holder.checkBoxComplete.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            task.setCompleted(isChecked);
             db.updateTask(task);
-            notifyItemChanged(position);
+
+            // Strike-through update immediately
+            if (isChecked) {
+                holder.tvTaskTitle.setPaintFlags(holder.tvTaskTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+            } else {
+                holder.tvTaskTitle.setPaintFlags(holder.tvTaskTitle.getPaintFlags() & (~Paint.STRIKE_THRU_TEXT_FLAG));
+            }
+
+            // Refresh progress in MainActivity
+            if (context instanceof MainActivity) {
+                ((MainActivity) context).updateProgress();
+            }
         });
 
         // ✏️ Edit Button
@@ -86,12 +101,21 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             taskList.remove(position);
             notifyItemRemoved(position);
             notifyItemRangeChanged(position, taskList.size());
+
+            if (context instanceof MainActivity) {
+                ((MainActivity) context).updateProgress();
+            }
         });
     }
 
     @Override
     public int getItemCount() {
         return taskList.size();
+    }
+
+    public void updateTasks(List<Task> updatedTasks) {
+        this.taskList = updatedTasks;
+        notifyDataSetChanged();
     }
 
     public static class TaskViewHolder extends RecyclerView.ViewHolder {
